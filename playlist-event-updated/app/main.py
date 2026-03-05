@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import io
 import os
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,14 +20,11 @@ from fastapi.templating import Jinja2Templates
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import ForeignKey, Index, String, Text, create_engine, func, select
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = BASE_DIR.parent
 DEFAULT_DB_PATH = PROJECT_DIR / "data" / "playlist_event.db"
-DEFAULT_SQLITE_URL = f"sqlite:///{DEFAULT_DB_PATH}"
+DB_PATH = Path(os.getenv("DB_PATH", str(DEFAULT_DB_PATH)))
 
 DEFAULT_ADMIN_PASSWORD = "change-me-admin"
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", DEFAULT_ADMIN_PASSWORD)
@@ -34,68 +32,6 @@ SECRET_KEY = os.getenv("SECRET_KEY", "playlist-event-dev-secret")
 ADMIN_COOKIE_NAME = "playlist_admin_session"
 ADMIN_COOKIE_MAX_AGE = 60 * 60 * 12
 SEOUL_TZ = ZoneInfo("Asia/Seoul")
-
-
-class Base(DeclarativeBase):
-    pass
-
-
-class Entry(Base):
-    __tablename__ = "entries"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(40), nullable=False)
-    company: Mapped[str] = mapped_column(String(60), nullable=False)
-    department: Mapped[str] = mapped_column(String(60), nullable=False)
-    song_title: Mapped[str] = mapped_column(String(120), nullable=False)
-    artist_name: Mapped[str] = mapped_column(String(120), nullable=False)
-    reason: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[str] = mapped_column(String(40), nullable=False)
-
-    likes: Mapped[list["Like"]] = relationship(
-        back_populates="entry",
-        cascade="all, delete-orphan",
-    )
-
-
-class Like(Base):
-    __tablename__ = "likes"
-    __table_args__ = (
-        Index("idx_likes_entry_id_token", "entry_id", "client_token", unique=True),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    entry_id: Mapped[int] = mapped_column(ForeignKey("entries.id", ondelete="CASCADE"), nullable=False)
-    client_token: Mapped[str] = mapped_column(String(120), nullable=False)
-    created_at: Mapped[str] = mapped_column(String(40), nullable=False)
-
-    entry: Mapped[Entry] = relationship(back_populates="likes")
-
-
-Index("idx_entries_created_at", Entry.created_at.desc())
-
-
-def normalize_database_url() -> str:
-    database_url = os.getenv("DATABASE_URL", "").strip()
-    if database_url:
-        if database_url.startswith("postgres://"):
-            return database_url.replace("postgres://", "postgresql://", 1)
-        return database_url
-
-    db_path_env = os.getenv("DB_PATH", str(DEFAULT_DB_PATH))
-    db_path = Path(db_path_env)
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    return f"sqlite:///{db_path}"
-
-
-DATABASE_URL = normalize_database_url()
-IS_SQLITE = DATABASE_URL.startswith("sqlite")
-ENGINE_KWARGS: dict[str, Any] = {"future": True, "pool_pre_ping": True}
-if IS_SQLITE:
-    ENGINE_KWARGS["connect_args"] = {"check_same_thread": False}
-
-engine = create_engine(DATABASE_URL, **ENGINE_KWARGS)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
 
 app = FastAPI(title="Only One Playlist Event")
 app.add_middleware(
@@ -158,8 +94,43 @@ def utc_now_iso() -> str:
 
 
 
+def get_connection() -> sqlite3.Connection:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+
 def init_db() -> None:
-    Base.metadata.create_all(bind=engine)
+    with get_connection() as conn:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                company TEXT NOT NULL,
+                department TEXT NOT NULL,
+                song_title TEXT NOT NULL,
+                artist_name TEXT NOT NULL,
+                reason TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS likes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                entry_id INTEGER NOT NULL,
+                client_token TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (entry_id) REFERENCES entries(id) ON DELETE CASCADE,
+                UNIQUE(entry_id, client_token)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_entries_created_at ON entries(created_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_likes_entry_id ON likes(entry_id);
+            """
+        )
 
 
 
@@ -181,83 +152,81 @@ def created_at_to_kst(created_at: str) -> str:
 
 
 
-def row_mapping_to_dict(row: Any) -> dict[str, Any]:
-    data = row._mapping if hasattr(row, "_mapping") else row
-    song_title = data["song_title"]
-    artist_name = data["artist_name"]
-    created_at = data["created_at"]
+def entry_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+    song_title = row["song_title"]
+    artist_name = row["artist_name"]
+    created_at = row["created_at"]
     return {
-        "id": data["id"],
-        "name": data["name"],
-        "company": data["company"],
-        "department": data["department"],
+        "id": row["id"],
+        "name": row["name"],
+        "company": row["company"],
+        "department": row["department"],
         "songTitle": song_title,
         "artistName": artist_name,
-        "reason": data["reason"],
+        "reason": row["reason"],
         "createdAt": created_at,
         "createdAtKst": created_at_to_kst(created_at),
-        "likes": int(data["likes_count"] or 0),
+        "likes": row["likes_count"],
         "youtubeSearchUrl": build_youtube_search_url(song_title, artist_name),
     }
 
 
 
-def entry_select(order_for_admin: bool = False):
-    likes_count = func.count(Like.id).label("likes_count")
-    stmt = (
-        select(
-            Entry.id,
-            Entry.name,
-            Entry.company,
-            Entry.department,
-            Entry.song_title,
-            Entry.artist_name,
-            Entry.reason,
-            Entry.created_at,
-            likes_count,
-        )
-        .select_from(Entry)
-        .outerjoin(Like, Like.entry_id == Entry.id)
-        .group_by(
-            Entry.id,
-            Entry.name,
-            Entry.company,
-            Entry.department,
-            Entry.song_title,
-            Entry.artist_name,
-            Entry.reason,
-            Entry.created_at,
-        )
-    )
-    if order_for_admin:
-        return stmt.order_by(Entry.created_at.desc())
-    return stmt.order_by(likes_count.desc(), Entry.created_at.desc())
-
-
-
 def fetch_entries() -> list[dict[str, Any]]:
-    with SessionLocal() as session:
-        rows = session.execute(entry_select(order_for_admin=False)).all()
-    return [row_mapping_to_dict(row) for row in rows]
+    query = """
+        SELECT
+            e.id,
+            e.name,
+            e.company,
+            e.department,
+            e.song_title,
+            e.artist_name,
+            e.reason,
+            e.created_at,
+            COUNT(l.id) AS likes_count
+        FROM entries e
+        LEFT JOIN likes l ON l.entry_id = e.id
+        GROUP BY e.id
+        ORDER BY likes_count DESC, e.created_at DESC
+    """
+    with get_connection() as conn:
+        rows = conn.execute(query).fetchall()
+    return [entry_row_to_dict(row) for row in rows]
 
 
 
 def fetch_admin_entries() -> list[dict[str, Any]]:
-    with SessionLocal() as session:
-        rows = session.execute(entry_select(order_for_admin=True)).all()
-    return [row_mapping_to_dict(row) for row in rows]
+    query = """
+        SELECT
+            e.id,
+            e.name,
+            e.company,
+            e.department,
+            e.song_title,
+            e.artist_name,
+            e.reason,
+            e.created_at,
+            COUNT(l.id) AS likes_count
+        FROM entries e
+        LEFT JOIN likes l ON l.entry_id = e.id
+        GROUP BY e.id
+        ORDER BY e.created_at DESC
+    """
+    with get_connection() as conn:
+        rows = conn.execute(query).fetchall()
+    return [entry_row_to_dict(row) for row in rows]
 
 
 
 def fetch_stats() -> dict[str, int]:
-    with SessionLocal() as session:
-        total_entries = session.scalar(select(func.count()).select_from(Entry)) or 0
-        total_likes = session.scalar(select(func.count()).select_from(Like)) or 0
-        total_companies = session.scalar(select(func.count(func.distinct(Entry.company))).select_from(Entry)) or 0
+    with get_connection() as conn:
+        total_entries = conn.execute("SELECT COUNT(*) FROM entries").fetchone()[0]
+        total_likes = conn.execute("SELECT COUNT(*) FROM likes").fetchone()[0]
+        total_companies = conn.execute("SELECT COUNT(DISTINCT company) FROM entries").fetchone()[0]
     return {
-        "totalEntries": int(total_entries),
-        "totalLikes": int(total_likes),
-        "totalCompanies": int(total_companies),
+        "totalEntries": total_entries,
+        "totalLikes": total_likes,
+        "totalCompanies": total_companies,
     }
 
 
@@ -486,75 +455,89 @@ def list_entries() -> dict[str, Any]:
 @app.post("/api/entries")
 def create_entry(payload: EntryCreate) -> dict[str, Any]:
     created_at = utc_now_iso()
-    with SessionLocal() as session:
-        duplicate_stmt = (
-            select(Entry.id)
-            .where(func.lower(Entry.name) == payload.name.lower())
-            .where(func.lower(Entry.company) == payload.company.lower())
-            .where(func.lower(Entry.department) == payload.department.lower())
-            .limit(1)
-        )
-        duplicate = session.scalar(duplicate_stmt)
+    with get_connection() as conn:
+        duplicate = conn.execute(
+            """
+            SELECT id
+            FROM entries
+            WHERE LOWER(name) = LOWER(?)
+              AND LOWER(company) = LOWER(?)
+              AND LOWER(department) = LOWER(?)
+            LIMIT 1
+            """,
+            (payload.name, payload.company, payload.department),
+        ).fetchone()
         if duplicate is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="이름/회사/부서 기준으로 이미 추천곡이 등록되어 있습니다. 1인 1곡만 참여할 수 있어요.",
             )
 
-        entry = Entry(
-            name=payload.name,
-            company=payload.company,
-            department=payload.department,
-            song_title=payload.song_title,
-            artist_name=payload.artist_name,
-            reason=payload.reason,
-            created_at=created_at,
+        cursor = conn.execute(
+            """
+            INSERT INTO entries (name, company, department, song_title, artist_name, reason, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                payload.name,
+                payload.company,
+                payload.department,
+                payload.song_title,
+                payload.artist_name,
+                payload.reason,
+                created_at,
+            ),
         )
-        session.add(entry)
-        session.commit()
-        session.refresh(entry)
-
-    item = {
-        "id": entry.id,
-        "name": entry.name,
-        "company": entry.company,
-        "department": entry.department,
-        "songTitle": entry.song_title,
-        "artistName": entry.artist_name,
-        "reason": entry.reason,
-        "createdAt": entry.created_at,
-        "createdAtKst": created_at_to_kst(entry.created_at),
-        "likes": 0,
-        "youtubeSearchUrl": build_youtube_search_url(entry.song_title, entry.artist_name),
-    }
-    return {"item": item, "stats": fetch_stats()}
+        entry_id = cursor.lastrowid
+        row = conn.execute(
+            """
+            SELECT
+                e.id,
+                e.name,
+                e.company,
+                e.department,
+                e.song_title,
+                e.artist_name,
+                e.reason,
+                e.created_at,
+                0 AS likes_count
+            FROM entries e
+            WHERE e.id = ?
+            """,
+            (entry_id,),
+        ).fetchone()
+    if row is None:
+        raise HTTPException(status_code=500, detail="등록된 항목을 불러오지 못했습니다.")
+    return {"item": entry_row_to_dict(row), "stats": fetch_stats()}
 
 
 @app.post("/api/entries/{entry_id}/like")
 def like_entry(entry_id: int, payload: LikePayload) -> dict[str, Any]:
-    already_liked = False
-    with SessionLocal() as session:
-        entry = session.get(Entry, entry_id)
-        if entry is None:
+    with get_connection() as conn:
+        entry_exists = conn.execute("SELECT 1 FROM entries WHERE id = ?", (entry_id,)).fetchone()
+        if entry_exists is None:
             raise HTTPException(status_code=404, detail="항목을 찾을 수 없습니다.")
 
-        like = Like(
-            entry_id=entry_id,
-            client_token=payload.client_token,
-            created_at=utc_now_iso(),
-        )
-        session.add(like)
+        already_liked = False
         try:
-            session.commit()
-        except IntegrityError:
-            session.rollback()
+            conn.execute(
+                """
+                INSERT INTO likes (entry_id, client_token, created_at)
+                VALUES (?, ?, ?)
+                """,
+                (entry_id, payload.client_token, utc_now_iso()),
+            )
+        except sqlite3.IntegrityError:
             already_liked = True
 
-        likes_count = session.scalar(select(func.count()).select_from(Like).where(Like.entry_id == entry_id)) or 0
+        likes_count = conn.execute(
+            "SELECT COUNT(*) FROM likes WHERE entry_id = ?",
+            (entry_id,),
+        ).fetchone()[0]
 
     response: dict[str, Any] = {
         "entryId": entry_id,
-        "likes": int(likes_count),
+        "likes": likes_count,
         "alreadyLiked": already_liked,
         "stats": fetch_stats(),
     }

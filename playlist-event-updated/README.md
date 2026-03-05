@@ -2,16 +2,6 @@
 
 직원 참여형 추천곡 이벤트를 위한 풀스택 웹앱입니다.
 
-## 이번 버전의 핵심
-
-이 버전은 **PostgreSQL 연결을 지원**합니다.
-
-즉,
-- 로컬에서는 아무 설정이 없으면 **SQLite** 로 바로 실행 가능
-- Render에 배포할 때는 `DATABASE_URL` 을 넣으면 **PostgreSQL** 로 저장
-
-그래서 이번 이벤트처럼 **Render Free Web Service + Render Free Postgres** 조합으로 운영할 수 있습니다.
-
 ## 포함 기능
 
 - 추천곡 등록 폼
@@ -28,23 +18,34 @@
 - 다른 직원들이 좋아요 누르기
 - 카드 / 팝업에서 **유튜브 검색으로 바로 듣기**
 - 검색 / 정렬
+- SQLite 기반 저장
 - **관리자 페이지에서 CSV / Excel 일괄 다운로드**
 - Docker 배포 가능
+
+## 사용자 화면 구조
+
+- 메인 히어로 랜딩
+- 추천곡 등록 **모달**
+- 하이라이트 카드 영역
+- 전체 추천곡 리스트
+- 카드 클릭 시 상세 팝업
+
+즉, 첫 화면에 STEP 1 / STEP 2 안내를 길게 노출하지 않고,
+이벤트 랜딩 → 하이라이트 → 전체 리스트 구조로 정리되어 있습니다.
 
 ## 기술 스택
 
 - FastAPI
 - Jinja2 템플릿
 - Vanilla JavaScript
-- SQLAlchemy
-- SQLite / PostgreSQL 겸용
+- SQLite
 - OpenPyXL
 - Docker
 
 ## 로컬 실행
 
 ```bash
-cd playlist-event-postgres-ready
+cd playlist-event
 python -m venv .venv
 source .venv/bin/activate   # Windows는 .venv\Scripts\activate
 pip install -r requirements.txt
@@ -53,27 +54,19 @@ uvicorn app.main:app --reload
 
 브라우저에서 `http://localhost:8000` 접속
 
-## 데이터베이스 사용 방식
+## 데이터 파일 위치
 
-### 1) 로컬 실행용 기본값
-
-환경변수를 따로 넣지 않으면 자동으로 SQLite를 씁니다.
+기본 DB 파일:
 
 ```bash
 ./data/playlist_event.db
 ```
 
-### 2) Render 배포용
-
-Render에서는 `DATABASE_URL` 환경변수를 넣으면 PostgreSQL로 연결됩니다.
-
-예:
+원하면 환경변수로 변경할 수 있습니다.
 
 ```bash
-DATABASE_URL="postgresql://..."
+DB_PATH=/absolute/path/playlist_event.db uvicorn app.main:app --reload
 ```
-
-만약 `DATABASE_URL` 이 없으면 다시 SQLite로 동작합니다.
 
 ## 관리자 페이지
 
@@ -83,13 +76,19 @@ DATABASE_URL="postgresql://..."
 http://localhost:8000/admin
 ```
 
-기본 관리자 비밀번호:
+기본 관리자 비밀번호는 아래 값입니다.
 
 ```bash
 change-me-admin
 ```
 
-실제 배포 전에는 반드시 바꾸세요.
+실제 배포 전에는 반드시 환경변수로 변경하세요.
+
+```bash
+ADMIN_PASSWORD="your-secure-password" uvicorn app.main:app --reload
+```
+
+추가로 쿠키 서명을 위한 시크릿도 같이 설정하는 것을 권장합니다.
 
 ```bash
 ADMIN_PASSWORD="your-secure-password" \
@@ -112,8 +111,6 @@ uvicorn app.main:app --reload
 
 ## Docker 실행
 
-### SQLite로 로컬 실행
-
 ```bash
 docker build -t playlist-event .
 docker run -p 8000:8000 \
@@ -123,34 +120,39 @@ docker run -p 8000:8000 \
   playlist-event
 ```
 
-### PostgreSQL로 실행
+## 서버 배포 팁
+
+이 프로젝트는 Docker 기반으로 바로 서버에 올릴 수 있게 구성되어 있습니다.
+
+### 방법 1) 사내 서버 / VPS
 
 ```bash
+git clone <repo>
+cd playlist-event
 docker build -t playlist-event .
-docker run -p 8000:8000 \
-  -e DATABASE_URL='postgresql://USER:PASSWORD@HOST:5432/DBNAME' \
+docker run -d --name playlist-event \
+  -p 80:8000 \
   -e ADMIN_PASSWORD='your-secure-password' \
   -e SECRET_KEY='your-long-random-secret' \
+  -v /srv/playlist-event-data:/data \
   playlist-event
 ```
 
-## Render 배포 시 넣을 값
+### 방법 2) Render / Railway 같은 Docker 지원 서비스
 
-Render Web Service 환경변수:
+- 저장소에 이 프로젝트를 업로드
+- Docker 배포 선택
+- 영구 스토리지 또는 디스크 마운트 연결
+- 포트 8000 사용
+- `DB_PATH=/data/playlist_event.db` 유지
+- 환경변수 `ADMIN_PASSWORD`, `SECRET_KEY` 추가
 
-```bash
-DATABASE_URL=<Render Postgres의 Internal Database URL>
-ADMIN_PASSWORD=<원하는 관리자 비밀번호>
-SECRET_KEY=<길고 랜덤한 문자열>
-```
+## 운영 시 권장 사항
 
-## 운영 팁
-
-- 이번처럼 **3주 이벤트**라면 Render Free Postgres로도 운영 가능
-- 이벤트 오픈 직전에 DB를 만들고,
-- 운영 중에는 `/admin` 에서 **CSV / Excel을 주기적으로 내려받아 백업**하는 것을 권장
-- 좋아요는 브라우저 기준 1회 제한
-- 관리자 비밀번호는 꼭 변경 후 배포
+- 실제 사내 이벤트 운영이면 SQLite로도 충분한 경우가 많습니다.
+- 참여 인원이 많아지고 동시 접속이 커지면 PostgreSQL로 전환하는 것이 좋습니다.
+- 좋아요는 브라우저 기준 1회 제한입니다.
+- 관리자 페이지는 반드시 비밀번호를 변경한 뒤 공개 환경에 배포하세요.
 
 ## 주요 API
 
