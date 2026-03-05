@@ -21,8 +21,9 @@
             <p class="hero-kicker">사내 추천곡 이벤트</p>
             <h1>{{ event_title }}</h1>
             <p class="hero-description">
-              직원 한 명당 한 곡씩 추천하고, 서로의 플레이리스트를 들어보고,
-              좋아요로 응원하는 사내 참여형 이벤트 페이지입니다.
+              그룹사 직원 누구나 한 곡씩 추천할 수 있어요.<br />
+              '유튜브에서 듣기'를 누르면 바로 유튜브에서 해당 곡을 직접 들을 수 있어요.<br />
+              서로의 플레이리스트를 들어보고 좋은 곡은 '좋아요'를 눌러 추천하는 사내 참여형 이벤트입니다.
             </p>
           </div>
 
@@ -31,24 +32,10 @@
             <a href="#playlist" class="cta cta-secondary">플레이리스트 보기</a>
           </div>
 
-          <ul class="hero-points" aria-label="이벤트 핵심 포인트">
-            <li>1인 1곡 추천</li>
-            <li>좋아요 유지</li>
-            <li>유튜브에서 듣기</li>
-          </ul>
-
           <section class="stats-strip" aria-label="이벤트 현황">
             <article class="stat-card">
               <span class="stat-label">등록된 추천곡</span>
               <strong id="statEntries">0</strong>
-            </article>
-            <article class="stat-card">
-              <span class="stat-label">누적 좋아요</span>
-              <strong id="statLikes">0</strong>
-            </article>
-            <article class="stat-card">
-              <span class="stat-label">참여 회사 수</span>
-              <strong id="statCompanies">0</strong>
             </article>
           </section>
         </section>
@@ -109,26 +96,15 @@
         <div class="section-heading split-heading">
           <div>
             <p class="section-badge">SPOTLIGHT BOARD</p>
-            <h2>이번 플레이리스트 하이라이트</h2>
-            <p>
-              좋아요가 많은 곡과 최근 등록된 곡 일부만 이 영역에 떠오릅니다.
-              참여자가 30명 이상이 되어도 첫 화면은 복잡해지지 않게 구성했습니다.
-            </p>
+            <h2>플레이리스트 하이라이트</h2>
+            <p>인기 많은 추천곡&amp;최신 추천곡</p>
           </div>
           <button type="button" class="mini-cta open-submit">지금 참여하기</button>
         </div>
 
         <div class="spotlight-stage">
-          <div class="spotlight-center">
-            <div class="center-record" aria-hidden="true"></div>
-            <div class="center-copy">
-              <p class="center-chip">ON AIR</p>
-              <h3>추천곡이 버블처럼 떠오르는 메인 무드 영역</h3>
-              <p>
-                모든 글을 한 번에 쌓지 않고, 상단에는 하이라이트만 보여줍니다.
-                전체 목록은 아래에서 12개씩 깔끔하게 넘겨볼 수 있어요.
-              </p>
-            </div>
+          <div class="spotlight-center" aria-hidden="true">
+            <div class="center-record"></div>
           </div>
 
           <div id="spotlightEmpty" class="spotlight-empty">
@@ -146,10 +122,7 @@
           <div>
             <p class="section-badge">ALL PLAYLISTS</p>
             <h2>직원 추천곡 전체 보기</h2>
-            <p>
-              카드에서 바로 좋아요를 누르거나 유튜브에서 듣기를 눌러 새 탭으로 이동할 수 있습니다.
-              카드를 클릭하면 추천 이유 전체를 볼 수 있어요.
-            </p>
+            <p>직원들의 모든 노래를 한눈에 확인해보세요.</p>
           </div>
           <button type="button" class="mini-cta open-submit">내 추천곡 남기기</button>
         </div>

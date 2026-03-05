@@ -193,9 +193,9 @@ function decorateCard(node, entry, index) {
 }
 
 function renderStats() {
-  els.statEntries.textContent = formatNumber(state.stats.totalEntries);
-  els.statLikes.textContent = formatNumber(state.stats.totalLikes);
-  els.statCompanies.textContent = formatNumber(state.stats.totalCompanies);
+  if (els.statEntries) els.statEntries.textContent = formatNumber(state.stats.totalEntries);
+  if (els.statLikes) els.statLikes.textContent = formatNumber(state.stats.totalLikes);
+  if (els.statCompanies) els.statCompanies.textContent = formatNumber(state.stats.totalCompanies);
 }
 
 function renderHero() {
@@ -283,7 +283,7 @@ function renderSpotlight() {
   if (!hasAnyEntries) {
     els.spotlightEmpty.querySelector(".empty-badge").textContent = "첫 번째 추천곡을 기다리는 중";
     els.spotlightEmpty.querySelector("h3").textContent = "아직 하이라이트에 표시할 곡이 없어요";
-    els.spotlightEmpty.querySelector("p").textContent = "추천곡이 등록되면 이 공간에 둥실 떠다니는 카드가 생성됩니다.";
+    els.spotlightEmpty.querySelector("p").textContent = "추천곡이 등록되면 이 공간에 하이라이트 곡이 표시됩니다.";
     return;
   }
 
