@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title }}</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="page-noise" aria-hidden="true"></div>
+
+    <header class="hero-shell">
+      <div class="hero-backdrop sticker sticker-record">PLAY</div>
+      <div class="hero-backdrop sticker sticker-cassette">LIKE</div>
+      <div class="hero-backdrop sticker sticker-headphone">MUSIC</div>
+
+      <div class="page-shell hero-layout">
+        <section class="hero-copy">
+          <p class="hero-chip">{{ event_label }}</p>
+          <div class="hero-plaque">
+            <p class="hero-kicker">사내 추천곡 이벤트</p>
+            <h1>{{ event_title }}</h1>
+            <p class="hero-description">
+              직원 한 명당 한 곡씩 추천하고, 서로의 플레이리스트를 들어보고,
+              좋아요로 응원하는 사내 참여형 이벤트 페이지입니다.
+            </p>
+          </div>
+
+          <div class="hero-actions">
+            <button type="button" class="cta cta-primary open-submit">내 추천곡 남기기</button>
+            <a href="#playlist" class="cta cta-secondary">플레이리스트 보기</a>
+          </div>
+
+          <ul class="hero-points" aria-label="이벤트 핵심 포인트">
+            <li>1인 1곡 추천</li>
+            <li>좋아요 유지</li>
+            <li>유튜브에서 듣기</li>
+          </ul>
+
+          <section class="stats-strip" aria-label="이벤트 현황">
+            <article class="stat-card">
+              <span class="stat-label">등록된 추천곡</span>
+              <strong id="statEntries">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">누적 좋아요</span>
+              <strong id="statLikes">0</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">참여 회사 수</span>
+              <strong id="statCompanies">0</strong>
+            </article>
+          </section>
+        </section>
+
+        <aside class="hero-showcase" aria-live="polite">
+          <div class="showcase-ornament show-vinyl" aria-hidden="true"></div>
+          <div class="showcase-ornament show-cassette" aria-hidden="true"></div>
+
+          <div class="player-showcase">
+            <div class="player-art" aria-hidden="true">
+              <div class="art-ring"></div>
+              <div class="art-center"></div>
+            </div>
+
+            <div class="player-frame">
+              <p class="showcase-chip">NOW PLAYING</p>
+              <h2 id="heroSongTitle">첫 번째 추천곡을 기다리는 중</h2>
+              <p id="heroArtistName" class="showcase-artist">추천곡이 등록되면 여기에서 가장 먼저 보여줄게요.</p>
+
+              <div class="player-progress" aria-hidden="true">
+                <span></span>
+              </div>
+
+              <div class="player-meta">
+                <div>
+                  <small>추천자</small>
+                  <strong id="heroRecommendedBy">아직 없음</strong>
+                </div>
+                <div>
+                  <small>소속</small>
+                  <strong id="heroRecommendationMeta">Only One Playlist</strong>
+                </div>
+              </div>
+
+              <div class="showcase-actions">
+                <a
+                  id="heroListenButton"
+                  class="listen-button medium disabled"
+                  href="#"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-disabled="true"
+                >
+                  ▶ 유튜브에서 듣기
+                </a>
+                <button type="button" id="heroLikeButton" class="like-button medium hidden">
+                  ❤ <span id="heroLikeCount">0</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </header>
+
+    <main class="page-shell main-shell">
+      <section class="spotlight-section" id="highlights">
+        <div class="section-heading split-heading">
+          <div>
+            <p class="section-badge">SPOTLIGHT BOARD</p>
+            <h2>이번 플레이리스트 하이라이트</h2>
+            <p>
+              좋아요가 많은 곡과 최근 등록된 곡 일부만 이 영역에 떠오릅니다.
+              참여자가 30명 이상이 되어도 첫 화면은 복잡해지지 않게 구성했습니다.
+            </p>
+          </div>
+          <button type="button" class="mini-cta open-submit">지금 참여하기</button>
+        </div>
+
+        <div class="spotlight-stage">
+          <div class="spotlight-center">
+            <div class="center-record" aria-hidden="true"></div>
+            <div class="center-copy">
+              <p class="center-chip">ON AIR</p>
+              <h3>추천곡이 버블처럼 떠오르는 메인 무드 영역</h3>
+              <p>
+                모든 글을 한 번에 쌓지 않고, 상단에는 하이라이트만 보여줍니다.
+                전체 목록은 아래에서 12개씩 깔끔하게 넘겨볼 수 있어요.
+              </p>
+            </div>
+          </div>
+
+          <div id="spotlightEmpty" class="spotlight-empty">
+            <span class="empty-badge">첫 번째 추천곡을 기다리는 중</span>
+            <h3>아직 하이라이트에 표시할 곡이 없어요</h3>
+            <p>추천곡이 등록되면 이 공간에 둥실 떠다니는 카드가 생성됩니다.</p>
+          </div>
+
+          <div id="spotlightBoard" class="spotlight-board" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="playlist-section" id="playlist">
+        <div class="section-heading playlist-header">
+          <div>
+            <p class="section-badge">ALL PLAYLISTS</p>
+            <h2>직원 추천곡 전체 보기</h2>
+            <p>
+              카드에서 바로 좋아요를 누르거나 유튜브에서 듣기를 눌러 새 탭으로 이동할 수 있습니다.
+              카드를 클릭하면 추천 이유 전체를 볼 수 있어요.
+            </p>
+          </div>
+          <button type="button" class="mini-cta open-submit">내 추천곡 남기기</button>
+        </div>
+
+        <div class="playlist-toolbar" aria-label="검색 및 정렬">
+          <label class="search-box">
+            <span class="sr-only">검색</span>
+            <input id="searchInput" type="search" placeholder="이름, 곡명, 가수, 부서로 검색" />
+          </label>
+
+          <label class="sort-box">
+            <span class="sr-only">정렬</span>
+            <select id="sortSelect">
+              <option value="popular">인기순</option>
+              <option value="latest">최신순</option>
+              <option value="artist">가수명순</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="playlist-summary" aria-live="polite">
+          <span id="listSummaryText">추천곡 0곡</span>
+          <span id="pageSummaryText">1 / 1 페이지</span>
+        </div>
+
+        <div id="emptyState" class="empty-state hidden">
+          <span class="empty-badge">플레이리스트 준비 중</span>
+          <h3>아직 등록된 추천곡이 없어요</h3>
+          <p>지금 첫 번째 추천곡을 남기면 전체 추천곡 리스트에 바로 반영됩니다.</p>
+        </div>
+
+        <div id="playlistGrid" class="playlist-grid" aria-live="polite"></div>
+
+        <div id="paginationRow" class="pagination-row hidden">
+          <button type="button" id="prevPage" class="pager-button">이전</button>
+          <div id="pagination" class="pagination"></div>
+          <button type="button" id="nextPage" class="pager-button">다음</button>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="formDialog" class="sheet-dialog">
+      <div class="sheet-card">
+        <button type="button" class="dialog-close" data-close-dialog="formDialog" aria-label="닫기">×</button>
+
+        <div class="sheet-header">
+          <p class="section-badge">ENTRY FORM</p>
+          <h2>내 추천곡 남기기</h2>
+          <p>
+            이름 / 소속회사 / 부서명 / 곡명 / 가수 이름 / 추천 이유를 적으면 됩니다.
+            직원 1명당 1곡만 등록할 수 있어요.
+          </p>
+        </div>
+
+        <form id="entryForm" class="entry-form">
+          <div class="field-grid two-up">
+            <label class="field">
+              <span>이름</span>
+              <input type="text" name="name" maxlength="40" placeholder="예: 김하늘" required />
+            </label>
+            <label class="field">
+              <span>소속회사</span>
+              <input type="text" name="company" maxlength="60" placeholder="예: Only One" required />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>부서명</span>
+            <input type="text" name="department" maxlength="60" placeholder="예: 브랜드커뮤니케이션팀" required />
+          </label>
+
+          <div class="field-grid two-up">
+            <label class="field">
+              <span>곡명</span>
+              <input type="text" name="songTitle" maxlength="120" placeholder="예: Sunday" required />
+            </label>
+            <label class="field">
+              <span>가수 이름</span>
+              <input type="text" name="artistName" maxlength="120" placeholder="예: JAY PARK" required />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>추천 이유</span>
+            <textarea
+              name="reason"
+              maxlength="500"
+              minlength="10"
+              rows="6"
+              placeholder="이 노래를 왜 추천하고 싶은지 자유롭게 적어주세요. 예: 출근길에 들으면 기분이 환기되고, 팀원들과 같이 듣고 싶어요."
+              required
+            ></textarea>
+            <small class="field-hint">최소 10자, 최대 500자</small>
+          </label>
+
+          <button type="submit" class="submit-button">추천곡 등록하기</button>
+          <p id="formMessage" class="form-message" aria-live="polite"></p>
+        </form>
+      </div>
+    </dialog>
+
+    <dialog id="entryDialog" class="entry-dialog">
+      <div class="dialog-card">
+        <button type="button" class="dialog-close" data-close-dialog="entryDialog" aria-label="닫기">×</button>
+        <p class="dialog-chip" id="dialogMeta">Only One</p>
+        <h3 id="dialogSongTitle">곡명</h3>
+        <p class="dialogArtist" id="dialogArtistName">가수 이름</p>
+        <dl class="dialog-info">
+          <div>
+            <dt>추천자</dt>
+            <dd id="dialogName">-</dd>
+          </div>
+          <div>
+            <dt>소속회사</dt>
+            <dd id="dialogCompany">-</dd>
+          </div>
+          <div>
+            <dt>부서명</dt>
+            <dd id="dialogDepartment">-</dd>
+          </div>
+        </dl>
+        <p class="dialog-reason" id="dialogReason">추천 이유</p>
+        <div class="dialog-actions">
+          <a id="dialogListenButton" class="listen-button large" href="#" target="_blank" rel="noopener noreferrer">
+            ▶ 유튜브에서 듣기
+          </a>
+          <button type="button" id="dialogLikeButton" class="like-button large">❤ <span>0</span></button>
+        </div>
+      </div>
+    </dialog>
+
+    <template id="spotlightTemplate">
+      <article class="spotlight-card" tabindex="0">
+        <span class="spotlight-company"></span>
+        <h3 class="spotlight-song"></h3>
+        <p class="spotlight-artist"></p>
+        <p class="spotlight-reason"></p>
+        <div class="spotlight-footer">
+          <div class="spotlight-person">
+            <strong class="spotlight-name"></strong>
+            <span class="spotlight-department"></span>
+          </div>
+          <div class="spotlight-actions">
+            <a class="listen-button small" href="#" target="_blank" rel="noopener noreferrer">▶ 듣기</a>
+            <button type="button" class="like-button small">❤ <span>0</span></button>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <template id="playlistCardTemplate">
+      <article class="playlist-card" tabindex="0">
+        <div class="playlist-card-top">
+          <div class="mini-disc" aria-hidden="true">
+            <span></span>
+          </div>
+          <div class="playlist-top-copy">
+            <span class="card-company"></span>
+            <h3 class="card-song"></h3>
+            <p class="card-artist"></p>
+          </div>
+        </div>
+
+        <div class="player-bar" aria-hidden="true">
+          <span></span>
+        </div>
+
+        <div class="playlist-card-body">
+          <div class="card-person">
+            <strong class="card-name"></strong>
+            <span class="card-department"></span>
+          </div>
+          <p class="card-reason"></p>
+        </div>
+
+        <div class="playlist-card-actions">
+          <button type="button" class="like-button medium">❤ <span>0</span></button>
+          <a class="listen-button medium" href="#" target="_blank" rel="noopener noreferrer">▶ 유튜브에서 듣기</a>
+        </div>
+      </article>
+    </template>
+
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

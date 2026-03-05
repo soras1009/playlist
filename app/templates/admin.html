@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>{{ page_title }}</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="admin-body">
+    <div class="page-noise" aria-hidden="true"></div>
+
+    <header class="admin-hero-shell">
+      <section class="admin-hero-panel">
+        <div>
+          <a href="/" class="admin-back-link">← 이벤트 페이지로 돌아가기</a>
+          <p class="hero-kicker">ADMIN</p>
+          <h1 class="admin-title">참여자 데이터 관리</h1>
+          <p class="admin-description">
+            참여자 목록을 확인하고 CSV 또는 Excel 파일로 한 번에 내려받을 수 있습니다.
+          </p>
+        </div>
+      </section>
+    </header>
+
+    <main class="admin-shell">
+      {% if authenticated %}
+      <section class="stats-strip admin-stats" aria-label="관리자 현황">
+        <article class="stat-card">
+          <span class="stat-label">등록된 추천곡</span>
+          <strong>{{ stats.totalEntries }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">누적 좋아요</span>
+          <strong>{{ stats.totalLikes }}</strong>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">참여 회사 수</span>
+          <strong>{{ stats.totalCompanies }}</strong>
+        </article>
+      </section>
+
+      <section class="admin-toolbar-panel">
+        <div class="admin-toolbar-copy">
+          <p class="section-badge">EXPORT</p>
+          <h2>일괄 다운로드</h2>
+          <p>이름, 회사, 부서, 추천곡, 추천 이유, 좋아요 수, 등록일시, 유튜브 검색 링크까지 함께 내려받습니다.</p>
+        </div>
+        <div class="admin-toolbar-actions">
+          <a href="/admin/export.csv" class="cta cta-primary">CSV 다운로드</a>
+          <a href="/admin/export.xlsx" class="cta cta-secondary admin-secondary-cta">Excel 다운로드</a>
+          <form method="post" action="/admin/logout">
+            <button type="submit" class="admin-logout-button">로그아웃</button>
+          </form>
+        </div>
+      </section>
+
+      {% if default_password_in_use %}
+      <section class="admin-warning-banner" role="status">
+        현재 기본 관리자 비밀번호가 사용 중입니다. 실제 배포 전에는 <code>ADMIN_PASSWORD</code> 환경변수를 꼭 변경하세요.
+      </section>
+      {% endif %}
+
+      <section class="admin-table-panel">
+        <div class="panel-heading admin-table-heading">
+          <div>
+            <p class="section-badge">ENTRIES</p>
+            <h2>참여자 목록</h2>
+            <p>최신 등록순으로 표시됩니다. 총 {{ items|length }}건</p>
+          </div>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>이름</th>
+                <th>소속회사</th>
+                <th>부서명</th>
+                <th>추천곡</th>
+                <th>가수</th>
+                <th>추천 이유</th>
+                <th>좋아요</th>
+                <th>등록일시</th>
+                <th>듣기</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+              <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.company }}</td>
+                <td>{{ item.department }}</td>
+                <td>{{ item.songTitle }}</td>
+                <td>{{ item.artistName }}</td>
+                <td class="admin-reason-cell">{{ item.reason }}</td>
+                <td>{{ item.likes }}</td>
+                <td>{{ item.createdAtKst }}</td>
+                <td>
+                  <a href="{{ item.youtubeSearchUrl }}" target="_blank" rel="noopener noreferrer" class="admin-inline-link">
+                    유튜브 검색
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {% else %}
+      <section class="admin-login-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="section-badge">LOGIN</p>
+            <h2>관리자 인증</h2>
+            <p>비밀번호를 입력하면 참여자 목록과 다운로드 버튼이 표시됩니다.</p>
+          </div>
+        </div>
+
+        {% if error_message %}
+        <p class="admin-error-message" role="alert">{{ error_message }}</p>
+        {% endif %}
+
+        <form method="post" action="/admin/login" class="admin-login-form">
+          <label class="field">
+            <span>관리자 비밀번호</span>
+            <input type="password" name="password" autocomplete="current-password" required />
+          </label>
+          <button type="submit" class="submit-button admin-login-button">관리자 페이지 열기</button>
+        </form>
+
+        <p class="admin-helper-text">
+          운영 환경에서는 환경변수 <code>ADMIN_PASSWORD</code>를 별도로 지정해 주세요.
+        </p>
+      </section>
+      {% endif %}
+    </main>
+  </body>
+</html>
