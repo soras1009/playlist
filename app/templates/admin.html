@@ -84,6 +84,7 @@
                 <th>좋아요</th>
                 <th>등록일시</th>
                 <th>듣기</th>
+                <th>관리</th>
               </tr>
             </thead>
             <tbody>
@@ -102,6 +103,13 @@
                   <a href="{{ item.youtubeSearchUrl }}" target="_blank" rel="noopener noreferrer" class="admin-inline-link">
                     유튜브 검색
                   </a>
+                </td>
+                <td class="admin-action-cell">
+                  <a href="/admin/entries/{{ item.id }}/edit" class="admin-inline-link">수정</a>
+                  <form method="post" action="/admin/entries/{{ item.id }}/delete" class="admin-inline-form"
+                        onsubmit="return confirm('이 추천곡을 삭제할까요?');">
+                    <button type="submit" class="admin-delete-button">삭제</button>
+                  </form>
                 </td>
               </tr>
               {% endfor %}

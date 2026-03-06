@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import ForeignKey, Index, String, Text, create_engine, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
@@ -249,6 +249,16 @@ def fetch_admin_entries() -> list[dict[str, Any]]:
 
 
 
+
+def fetch_entry_by_id(entry_id: int) -> dict[str, Any] | None:
+    with SessionLocal() as session:
+        row = session.execute(entry_select(order_for_admin=True).where(Entry.id == entry_id)).first()
+    if not row:
+        return None
+    return row_mapping_to_dict(row)
+
+
+
 def fetch_stats() -> dict[str, int]:
     with SessionLocal() as session:
         total_entries = session.scalar(select(func.count()).select_from(Entry)) or 0
@@ -399,6 +409,133 @@ def admin_logout() -> Response:
     response = RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
     clear_admin_cookie(response)
     return response
+
+
+
+@app.post("/admin/entries/{entry_id}/delete")
+def admin_delete_entry(entry_id: int, request: Request) -> Response:
+    require_admin(request)
+    with SessionLocal() as session:
+        entry = session.get(Entry, entry_id)
+        if entry is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="항목을 찾을 수 없습니다.")
+        session.delete(entry)
+        session.commit()
+    return RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
+
+
+
+@app.get("/admin/entries/{entry_id}/edit", response_class=HTMLResponse)
+def admin_edit_entry_page(entry_id: int, request: Request) -> HTMLResponse:
+    require_admin(request)
+    item = fetch_entry_by_id(entry_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="항목을 찾을 수 없습니다.")
+    return templates.TemplateResponse(
+        request=request,
+        name="admin_edit.html",
+        context={
+            "page_title": "Playlist Entry Edit",
+            "item": item,
+            "error_message": None,
+        },
+    )
+
+
+
+@app.post("/admin/entries/{entry_id}/edit")
+def admin_edit_entry_submit(
+    entry_id: int,
+    request: Request,
+    name: str = Form(...),
+    company: str = Form(...),
+    department: str = Form(...),
+    song_title: str = Form(...),
+    artist_name: str = Form(...),
+    reason: str = Form(...),
+) -> Response:
+    require_admin(request)
+
+    try:
+        payload = EntryCreate(
+            name=name,
+            company=company,
+            department=department,
+            songTitle=song_title,
+            artistName=artist_name,
+            reason=reason,
+        )
+    except ValidationError:
+        item = fetch_entry_by_id(entry_id) or {
+            "id": entry_id,
+            "name": name,
+            "company": company,
+            "department": department,
+            "songTitle": song_title,
+            "artistName": artist_name,
+            "reason": reason,
+            "likes": 0,
+            "createdAtKst": "",
+            "youtubeSearchUrl": build_youtube_search_url(song_title, artist_name),
+        }
+        return templates.TemplateResponse(
+            request=request,
+            name="admin_edit.html",
+            context={
+                "page_title": "Playlist Entry Edit",
+                "item": item,
+                "error_message": "입력값을 다시 확인해 주세요. (추천 이유는 10자 이상, 500자 이하)",
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    with SessionLocal() as session:
+        entry = session.get(Entry, entry_id)
+        if entry is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="항목을 찾을 수 없습니다.")
+
+        duplicate_stmt = (
+            select(Entry.id)
+            .where(func.lower(Entry.name) == payload.name.lower())
+            .where(func.lower(Entry.company) == payload.company.lower())
+            .where(func.lower(Entry.department) == payload.department.lower())
+            .where(Entry.id != entry_id)
+            .limit(1)
+        )
+        duplicate = session.scalar(duplicate_stmt)
+        if duplicate is not None:
+            item = fetch_entry_by_id(entry_id)
+            if item is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="항목을 찾을 수 없습니다.")
+            item["name"] = payload.name
+            item["company"] = payload.company
+            item["department"] = payload.department
+            item["songTitle"] = payload.song_title
+            item["artistName"] = payload.artist_name
+            item["reason"] = payload.reason
+            item["youtubeSearchUrl"] = build_youtube_search_url(payload.song_title, payload.artist_name)
+
+            return templates.TemplateResponse(
+                request=request,
+                name="admin_edit.html",
+                context={
+                    "page_title": "Playlist Entry Edit",
+                    "item": item,
+                    "error_message": "이름/회사/부서 기준으로 이미 다른 추천곡이 등록되어 있습니다.",
+                },
+                status_code=status.HTTP_409_CONFLICT,
+            )
+
+        entry.name = payload.name
+        entry.company = payload.company
+        entry.department = payload.department
+        entry.song_title = payload.song_title
+        entry.artist_name = payload.artist_name
+        entry.reason = payload.reason
+        session.commit()
+
+    return RedirectResponse(url="/admin", status_code=status.HTTP_303_SEE_OTHER)
+
 
 
 @app.get("/admin/export.csv")

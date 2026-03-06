@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>{{ page_title }}</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="admin-body">
+    <div class="page-noise" aria-hidden="true"></div>
+
+    <header class="admin-hero-shell">
+      <section class="admin-hero-panel">
+        <div>
+          <a href="/admin" class="admin-back-link">← 목록으로 돌아가기</a>
+          <p class="hero-kicker">ADMIN</p>
+          <h1 class="admin-title">추천곡 수정</h1>
+          <p class="admin-description">오타 수정, 정보 변경, 또는 삭제를 할 수 있습니다.</p>
+        </div>
+      </section>
+    </header>
+
+    <main class="admin-shell">
+      <section class="sheet-card admin-edit-card">
+        <div class="sheet-header">
+          <p class="section-badge">EDIT</p>
+          <h2>ID {{ item.id }} 수정</h2>
+          <p>등록일시 {{ item.createdAtKst }} · 좋아요 {{ item.likes }}</p>
+        </div>
+
+        {% if error_message %}
+        <p class="form-message error" role="alert">{{ error_message }}</p>
+        {% endif %}
+
+        <form method="post" action="/admin/entries/{{ item.id }}/edit" class="entry-form">
+          <div class="field-grid two-up">
+            <label class="field">
+              <span>이름</span>
+              <input type="text" name="name" value="{{ item.name }}" maxlength="40" required />
+            </label>
+            <label class="field">
+              <span>소속회사</span>
+              <input type="text" name="company" value="{{ item.company }}" maxlength="60" required />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>부서명</span>
+            <input type="text" name="department" value="{{ item.department }}" maxlength="60" required />
+          </label>
+
+          <div class="field-grid two-up">
+            <label class="field">
+              <span>추천곡명</span>
+              <input type="text" name="song_title" value="{{ item.songTitle }}" maxlength="120" required />
+            </label>
+            <label class="field">
+              <span>가수명</span>
+              <input type="text" name="artist_name" value="{{ item.artistName }}" maxlength="120" required />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>추천 이유</span>
+            <textarea name="reason" maxlength="500" required>{{ item.reason }}</textarea>
+            <span class="field-hint">10자 이상 500자 이하</span>
+          </label>
+
+          <div class="hero-actions">
+            <button type="submit" class="submit-button">저장하기</button>
+            <a href="{{ item.youtubeSearchUrl }}" target="_blank" rel="noopener noreferrer" class="cta cta-secondary">유튜브 검색</a>
+            <a href="/admin" class="cta cta-secondary">취소</a>
+          </div>
+        </form>
+
+        <div class="admin-danger-zone">
+          <p class="section-badge">DANGER</p>
+          <p class="admin-danger-text">삭제하면 해당 추천곡과 좋아요 기록이 함께 삭제됩니다.</p>
+          <form method="post" action="/admin/entries/{{ item.id }}/delete"
+                onsubmit="return confirm('정말 삭제할까요? 삭제 후 복구할 수 없습니다.');">
+            <button type="submit" class="admin-delete-button admin-delete-big">삭제하기</button>
+          </form>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

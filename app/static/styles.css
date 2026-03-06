@@ -1355,3 +1355,72 @@ body::after {
     height: 78px;
   }
 }
+
+
+/* Admin table actions */
+.admin-table-wrap {
+  overflow: auto;
+}
+
+.admin-action-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-inline-form {
+  margin: 0;
+}
+
+.admin-inline-link {
+  color: var(--navy-deep);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.admin-inline-link:hover {
+  text-decoration: underline;
+}
+
+.admin-delete-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(11, 39, 63, 0.12);
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.admin-delete-button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.02);
+}
+
+.admin-delete-big {
+  min-height: 54px;
+  padding: 0 24px;
+}
+
+.admin-edit-card {
+  max-width: 920px;
+  margin: 0 auto 48px;
+}
+
+.admin-danger-zone {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-strong);
+  display: grid;
+  gap: 10px;
+}
+
+.admin-danger-text {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
